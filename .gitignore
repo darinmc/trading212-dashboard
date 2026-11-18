@@ -1,0 +1,24 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Symfony cache, logs, sessions
+/var/var/log/
+/var/cache/
+/var/sessions/
+
+# Environment / secrets — NEVER commit
+.env
+.env.*
+!.env.example
+/config/secrets/
+
+# Local overrides
+/config/secrets/prod/prod.decrypt.private.php
+/phpunit.xml
+/.phpunit.result.cache
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp

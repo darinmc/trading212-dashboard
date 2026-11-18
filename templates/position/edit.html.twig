@@ -1,0 +1,18 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Position{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Edit Position</h1>
+
+        {{ form_start(form, {'action': path('app_position_edit', {'id': position.id, 'search': search, 'account': accountFilter})}) }}
+        {{ form_widget(form) }}
+        <div class="mt-3" style="display: flex; gap: 10px;">
+            <button class="btn btn-success">Update</button>
+        </div>
+    {{ form_end(form) }}
+
+    <a href="{{ path('app_position_index', {'search': search, 'account': accountFilter}) }}" class="btn btn-secondary mt-3">Back to list</a>
+</div>
+{% endblock %}

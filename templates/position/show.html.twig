@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Position{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Position</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ position.id }}</td>
+            </tr>
+            <tr>
+                <th>Ticker</th>
+                <td>{{ position.ticker }}</td>
+            </tr>
+            <tr>
+                <th>Name</th>
+                <td>{{ position.name }}</td>
+            </tr>
+            <tr>
+                <th>Shares</th>
+                <td>{{ position.shares }}</td>
+            </tr>
+            <tr>
+                <th>Avg Price</th>
+                <td>{{ position.avgPrice|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <th>Current Price</th>
+                <td>{{ position.currentPrice|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <th>Portfolio</th>
+                <td>{{ position.portfolio.accountName }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_position_index') }}" class="btn btn-secondary">Back to list</a>
+    <a href="{{ path('app_position_edit', {'id': position.id}) }}" class="btn btn-warning">Edit</a>
+</div>
+{% endblock %}

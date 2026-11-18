@@ -1,0 +1,908 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Master Dashboard{% endblock %}
+
+{% block body %}
+<style>
+    .master-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    .master-table th, .master-table td { border: 1px solid #ddd; padding: 4px; text-align: center; word-wrap: break-word; white-space: nowrap; overflow: visible; font-size: 0.85em; }
+    .master-table th { background-color: #343a40; color: white; }
+    .invest-header { background-color: #f39c12 !important; color: white !important; }
+    .isa-header { background-color: #3498db !important; color: white !important; }
+    .sipp-header { background-color: #f1c40f !important; color: white !important; }
+    .pl-positive { color: #28a745; font-weight: bold; }
+    .pl-negative { color: #dc3545; font-weight: bold; }
+    .search-box { margin-bottom: 20px; }
+    .action-buttons { margin-bottom: 20px; display: flex; gap: 10px; }
+    .empty-cell { color: #ccc; }
+    .separator-column { background-color: #fff3cd !important; width: 10px; min-width: 10px; max-width: 10px; padding: 0 !important; }
+    .separator-header { background-color: #fff3cd !important; width: 10px; min-width: 10px; max-width: 10px; padding: 0 !important; color: #333 !important; font-weight: bold; }
+    .tot-spent { font-weight: bold; color: #007bff; font-size: 0.9em; }
+    .summary-header { font-size: 11px; line-height: 1.2; }
+    .sort-link { color: #333; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
+    .sort-link:hover { color: #007bff; }
+    .sort-indicator { font-size: 0.8em; opacity: 0.6; }
+    .note-icon { cursor: pointer; font-size: 1.1em; opacity: 0.4; transition: opacity 0.2s; display: block; width: 100%; height: 100%; }
+    .note-icon:hover { opacity: 1; }
+    .note-icon.has-note { opacity: 1; font-size: 1.3em; }
+    .important-note { background-color: #ff4444 !important; }
+    .check-note { background-color: #ffeb3b !important; }
+    .financials-note { background-color: #4caf50 !important; }
+    .pl-gbp-col { width: 120px; min-width: 120px; max-width: 120px; }
+    .pl-percent-col { width: 90px; min-width: 90px; max-width: 90px; }
+    .tot-spent-col { width: 90px; min-width: 90px; max-width: 90px; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+    .modal-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 600px;
+        min-width: 400px;
+        max-width: 95vw;
+        max-height: 90vh;
+        border-radius: 8px;
+        color: white;
+        resize: both;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+    .modal-content::after {
+        content: "◢";
+        position: absolute;
+        bottom: 2px;
+        right: 5px;
+        font-size: 16px;
+        color: rgba(255,255,255,0.5);
+        cursor: nwse-resize;
+        pointer-events: none;
+    }
+    .close { color: white; font-size: 28px; font-weight: bold; cursor: pointer; position: absolute; right: 15px; top: 10px; z-index: 10; }
+    .close:hover { color: #f1c40f; }
+    .modal-header { margin-bottom: 15px; position: relative; display: flex; justify-content: center; align-items: center; min-height: 40px; flex-shrink: 0; }
+    .modal-title { font-size: 20px; font-weight: bold; margin: 0; text-align: center; }
+    .modal-body { background-color: white; border-radius: 4px; padding: 10px; overflow-y: auto; flex-grow: 1; min-height: 0; }
+    .editor-toolbar { display: flex; gap: 5px; margin-bottom: 5px; padding: 8px; background: #f8f9fa; border-radius: 4px 4px 0 0; border-bottom: 1px solid #ccc; flex-wrap: wrap; align-items: center; }
+    .editor-toolbar button { background: white; border: 1px solid #ccc; border-radius: 3px; padding: 5px 10px; cursor: pointer; font-size: 14px; }
+    .editor-toolbar button:hover { background: #e9ecef; }
+    .editor-toolbar button.active { background: #007bff; color: white; }
+    .editor-toolbar select { padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
+    .color-picker-btn { width: 25px; height: 25px; border-radius: 50%; border: 2px solid #ccc; cursor: pointer; display: inline-block; }
+    .color-picker-btn:hover { border-color: #007bff; }
+    .highlight-picker-btn { width: 25px; height: 25px; border-radius: 3px; border: 2px solid #ccc; cursor: pointer; display: inline-block; }
+    .highlight-picker-btn:hover { border-color: #007bff; }
+    .color-section { display: flex; align-items: center; gap: 3px; }
+    .color-label { font-size: 12px; color: #333; font-weight: bold; }
+    .editor-content { min-height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 0 0 4px 4px; font-size: 14px; overflow-y: auto; color: #333; background: white; flex-grow: 1; }
+    .editor-content:focus { outline: none; border-color: #007bff; }
+    .modal-footer { margin-top: 15px; text-align: center; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+    .save-note-btn { background-color: #f1c40f; color: #333; border: none; padding: 10px 30px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
+    .save-note-btn:hover { background-color: #d4ac0d; }
+    .note-column { width: 60px; min-width: 60px; max-width: 60px; }
+    .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #28a745; color: white; padding: 15px 20px; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000; display: none; font-size: 14px; transition: opacity 0.5s; text-align: center; max-width: 400px; }
+    /* Add these three lines */
+    .modal { z-index: 10050 !important; }
+    .modal-backdrop { z-index: 10040 !important; }
+    .modal-dialog { pointer-events: auto !important; }
+    .notification-error { background-color: #dc3545; }
+    .note-types-section { margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; }
+    .note-types-title { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 8px; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+    .note-types-row { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+    .note-type-label { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; cursor: pointer; padding: 6px 12px; border-radius: 4px; transition: all 0.2s; }
+    .note-type-label input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; }
+    .note-type-important { background-color: #ff4444; color: white; }
+    .note-type-check { background-color: #ffeb3b; color: #333; }
+    .note-type-financials { background-color: #4caf50; color: white; }
+    .note-type-label.selected { box-shadow: 0 0 0 3px #333; }
+    .note-type-important.selected { background-color: #cc0000; }
+    .note-type-check.selected { background-color: #fdd835; }
+    .note-type-financials.selected { background-color: #388e3c; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            setTimeout(function() {
+                alert.classList.add('alert-hide');
+                setTimeout(function() { alert.style.display = 'none'; }, 500);
+            }, 8000);
+        });
+
+        const syncForm = document.querySelector('form[action*="sync-t212"]');
+        if (syncForm) {
+            const syncButton = syncForm.querySelector('button');
+            syncForm.addEventListener('submit', function() {
+                syncButton.disabled = true;
+                syncButton.textContent = 'Syncing...';
+            });
+        }
+
+        const modal = document.getElementById('note-modal');
+        const closeBtn = document.querySelector('.close');
+        const saveBtn = document.getElementById('save-note-btn');
+        const noteTickerInput = document.getElementById('note-ticker');
+        const noteInput = document.getElementById('note-input');
+        const noteTitle = document.getElementById('note-title');
+        const importantCheckbox = document.getElementById('important-checkbox');
+        const checkCheckbox = document.getElementById('check-checkbox');
+        const financialsCheckbox = document.getElementById('financials-checkbox');
+
+        importantCheckbox.addEventListener('change', function() {
+            if (this.checked) { checkCheckbox.checked = false; financialsCheckbox.checked = false; }
+            updateSelectedClasses();
+        });
+        checkCheckbox.addEventListener('change', function() {
+            if (this.checked) { importantCheckbox.checked = false; financialsCheckbox.checked = false; }
+            updateSelectedClasses();
+        });
+        financialsCheckbox.addEventListener('change', function() {
+            if (this.checked) { importantCheckbox.checked = false; checkCheckbox.checked = false; }
+            updateSelectedClasses();
+        });
+
+        function updateSelectedClasses() {
+            document.querySelectorAll('.note-type-label').forEach(function(label) {
+                const checkbox = label.querySelector('input[type="checkbox"]');
+                if (checkbox.checked) label.classList.add('selected');
+                else label.classList.remove('selected');
+            });
+        }
+
+        document.querySelectorAll('.note-icon').forEach(function(icon) {
+            icon.addEventListener('click', function() {
+                const ticker = this.getAttribute('data-ticker');
+                const currentNote = this.getAttribute('data-note');
+                const isImportant = this.getAttribute('data-important') === 'true';
+                const isCheck = this.getAttribute('data-check') === 'true';
+                const isFinancials = this.getAttribute('data-financials') === 'true';
+
+                noteTitle.innerHTML = '📝 ' + ticker + ' Note';
+                noteTickerInput.value = ticker;
+                noteInput.innerHTML = currentNote || '';
+                importantCheckbox.checked = isImportant;
+                checkCheckbox.checked = isCheck;
+                financialsCheckbox.checked = isFinancials;
+                updateSelectedClasses();
+
+                modal.style.display = 'flex';
+            });
+        });
+
+        closeBtn.addEventListener('click', function() { modal.style.display = 'none'; });
+
+        saveBtn.addEventListener('click', function() {
+            const ticker = noteTickerInput.value;
+            const note = noteInput.innerHTML;
+            const important = importantCheckbox.checked;
+            const check = checkCheckbox.checked;
+            const financials = financialsCheckbox.checked;
+
+            fetch('/ticker/' + ticker + '/update-note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'note=' + encodeURIComponent(note) + '&important=' + (important ? '1' : '0') + '&check=' + (check ? '1' : '0') + '&financials=' + (financials ? '1' : '0')
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const icons = document.querySelectorAll('.note-icon[data-ticker="' + ticker + '"]');
+                    icons.forEach(function(icon) {
+                        if (note.trim() !== '') icon.classList.add('has-note');
+                        else icon.classList.remove('has-note');
+
+                        icon.setAttribute('data-note', note);
+                        icon.setAttribute('data-important', important ? 'true' : 'false');
+                        icon.setAttribute('data-check', check ? 'true' : 'false');
+                        icon.setAttribute('data-financials', financials ? 'true' : 'false');
+
+                        icon.classList.remove('important-note', 'check-note', 'financials-note');
+                        if (important) icon.classList.add('important-note');
+                        if (check) icon.classList.add('check-note');
+                        if (financials) icon.classList.add('financials-note');
+                    });
+                    modal.style.display = 'none';
+                    showNotification('Note saved for ' + ticker + '!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error saving note. Please try again.', true);
+            });
+        });
+
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification' + (isError ? ' notification-error' : '');
+            notification.style.display = 'block';
+            setTimeout(function() {
+                notification.style.opacity = '0';
+                setTimeout(function() {
+                    notification.style.display = 'none';
+                    notification.style.opacity = '1';
+                }, 500);
+            }, 5000);
+        }
+
+        function execCmd(command, value = null) { document.execCommand(command, false, value); }
+
+        document.querySelectorAll('.editor-toolbar button[data-cmd]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const cmd = this.getAttribute('data-cmd');
+                if (cmd === 'clearFormatting') execCmd('removeFormat');
+                else execCmd(cmd);
+                document.querySelectorAll('.editor-toolbar button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        document.getElementById('font-size-select').addEventListener('change', function() { execCmd('fontSize', this.value); });
+
+        document.querySelectorAll('.color-picker-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { execCmd('foreColor', this.getAttribute('data-color')); });
+        });
+
+        document.querySelectorAll('.highlight-picker-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { execCmd('hiliteColor', this.getAttribute('data-color')); });
+        });
+    });
+</script>
+
+<div class="container mt-4">
+    <h1>📊 Master Dashboard</h1>
+    <div id="notification" class="notification"></div>
+
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-error">{{ message }}</div>
+    {% endfor %}
+
+    <div class="action-buttons">
+        <form method="post" action="{{ path('app_trade_history_refresh') }}" style="display: inline-block;">
+            <button type="submit" class="btn btn-primary">🔄 Sync T212</button>
+        </form>
+        <a href="{{ path('app_position_index') }}" class="btn btn-secondary">💼 Manage Portfolio</a>
+        <a href="{{ path('app_sold_holdings') }}" class="btn btn-outline-secondary">💤 Sold Holdings</a>
+        <a href="{{ path('app_trade_history') }}" class="btn btn-outline-primary">📜 Trade History</a>
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#sippTradeModal">✍️ Record SIPP Trade</button>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="ticker-search" placeholder="Search Ticker..." class="form-control" style="max-width: 300px;">
+    </div>
+
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h2 class="modal-title" id="note-title">📝 Note</h2>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="note-ticker">
+                <div class="editor-toolbar">
+                    <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+                    <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+                    <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+                    <button type="button" data-cmd="removeFormat" title="Clear Formatting">Clear</button>
+                    <select id="font-size-select" title="Font Size">
+                        <option value="1">Small</option>
+                        <option value="3" selected>Normal</option>
+                        <option value="5">Large</option>
+                        <option value="7">Extra Large</option>
+                    </select>
+                    <div class="color-section">
+                        <span class="color-label">Text Color:</span>
+                        <button type="button" class="color-picker-btn" data-color="#000000" style="background: #000000;"></button>
+                        <button type="button" class="color-picker-btn" data-color="#dc3545" style="background: #dc3545;"></button>
+                        <button type="button" class="color-picker-btn" data-color="#007bff" style="background: #007bff;"></button>
+                        <button type="button" class="color-picker-btn" data-color="#28a745" style="background: #28a745;"></button>
+                        <button type="button" class="color-picker-btn" data-color="#ffc107" style="background: #ffc107;"></button>
+                        <button type="button" class="color-picker-btn" data-color="#6f42c1" style="background: #6f42c1;"></button>
+                    </div>
+                    <div class="color-section">
+                        <span class="color-label">Highlight:</span>
+                        <button type="button" class="highlight-picker-btn" data-color="#ffff00" style="background: #ffff00;"></button>
+                        <button type="button" class="highlight-picker-btn" data-color="#ffcccc" style="background: #ffcccc;"></button>
+                        <button type="button" class="highlight-picker-btn" data-color="#ccffcc" style="background: #ccffcc;"></button>
+                        <button type="button" class="highlight-picker-btn" data-color="#ccccff" style="background: #ccccff;"></button>
+                        <button type="button" class="highlight-picker-btn" data-color="#ffffff" style="background: #ffffff;"></button>
+                    </div>
+                </div>
+                <div class="note-types-section">
+                    <div class="note-types-title">Note Highlighter</div>
+                    <div class="note-types-row">
+                        <label class="note-type-label note-type-important">
+                            <input type="checkbox" id="important-checkbox"> Important
+                        </label>
+                        <label class="note-type-label note-type-check">
+                            <input type="checkbox" id="check-checkbox"> Check
+                        </label>
+                        <label class="note-type-label note-type-financials">
+                            <input type="checkbox" id="financials-checkbox"> Financials
+                        </label>
+                    </div>
+                </div>
+                <div id="note-input" class="editor-content" contenteditable="true"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="save-note-btn" id="save-note-btn">Save Note</button>
+            </div>
+        </div>
+    </div>
+
+    <table class="master-table">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width: 80px; background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'ticker', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">Ticker <span class="sort-indicator">{% if sort == 'ticker' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th rowspan="2" style="width: 80px; background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'price', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">Price <span class="sort-indicator">{% if sort == 'price' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th rowspan="2" class="note-column" style="background-color: #f8f9fa; color: #333;">Note</th>
+                <th class="separator-header"></th>
+                <th colspan="3" class="invest-header"><div class="summary-header">Invest Total Value<br><span style="font-weight: normal; font-size: 0.85em;">(Sum Spent £{{ totals.INVEST.totalInvested|number_format(0) }})</span></div></th>
+                <th class="separator-header"></th>
+                <th colspan="3" class="isa-header"><div class="summary-header">ISA Total Value<br><span style="font-weight: normal; font-size: 0.85em;">(Sum Spent £{{ totals.ISA.totalInvested|number_format(0) }})</span></div></th>
+                <th class="separator-header"></th>
+                <th colspan="3" class="sipp-header"><div class="summary-header">SIPP Total Value<br><span style="font-weight: normal; font-size: 0.85em;">(Sum Spent £{{ totals.SIPP.totalInvested|number_format(0) }})</span></div></th>
+            </tr>
+            <tr>
+                <th class="separator-header"></th>
+                <th class="tot-spent-col" style="background-color: #f8f9fa; color: #333;">Tot Spent £</th>
+                <th class="pl-percent-col" style="background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'invest_pl_percent', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">P/L (%) <span class="sort-indicator">{% if sort == 'invest_pl_percent' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th class="pl-gbp-col" style="background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'invest_pl', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">P/L (GBP) <span class="sort-indicator">{% if sort == 'invest_pl' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th class="separator-header"></th>
+                <th class="tot-spent-col" style="background-color: #f8f9fa; color: #333;">Tot Spent £</th>
+                <th class="pl-percent-col" style="background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'isa_pl_percent', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">P/L (%) <span class="sort-indicator">{% if sort == 'isa_pl_percent' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th class="pl-gbp-col" style="background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'isa_pl', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">P/L (GBP) <span class="sort-indicator">{% if sort == 'isa_pl' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th class="separator-header"></th>
+                <th class="tot-spent-col" style="background-color: #f8f9fa; color: #333;">Tot Spent £</th>
+                <th class="pl-percent-col" style="background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'sipp_pl_percent', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">P/L (%) <span class="sort-indicator">{% if sort == 'sipp_pl_percent' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+                <th class="pl-gbp-col" style="background-color: #f8f9fa; color: #333;"><a href="{{ path('app_master_dashboard', {'sort': 'sipp_pl', 'dir': dir == 'ASC' ? 'DESC' : 'ASC'}) }}" class="sort-link">P/L (GBP) <span class="sort-indicator">{% if sort == 'sipp_pl' %}{{ dir == 'ASC' ? '▲' : '▼' }}{% else %}⇅{% endif %}</span></a></th>
+            </tr>
+            <tr>
+                <td style="background-color: #e9ecef; font-weight: bold;">TOTAL</td>
+                <td style="background-color: #e9ecef;"></td>
+                <td style="background-color: #e9ecef;"></td>
+                <td class="separator-column"></td>
+                <td class="tot-spent-col" style="background-color: #e9ecef;"><span class="tot-spent">£{{ totals.INVEST.totalInvested|number_format(0) }}</span></td>
+                <td class="pl-percent-col" style="background-color: #e9ecef;">{% if totals.INVEST.totalPLPercent >= 0 %}<span class="pl-positive">▲ {{ totals.INVEST.totalPLPercent|number_format(2) }}%</span>{% else %}<span class="pl-negative">▼ {{ totals.INVEST.totalPLPercent|number_format(2) }}%</span>{% endif %}</td>
+                <td class="pl-gbp-col" style="background-color: #e9ecef;">{% if totals.INVEST.totalPL >= 0 %}<span class="pl-positive">▲ £{{ totals.INVEST.totalPL|number_format(2) }}</span>{% else %}<span class="pl-negative">▼ £{{ totals.INVEST.totalPL|number_format(2) }}</span>{% endif %}</td>
+                <td class="separator-column"></td>
+                <td class="tot-spent-col" style="background-color: #e9ecef;"><span class="tot-spent">£{{ totals.ISA.totalInvested|number_format(0) }}</span></td>
+                <td class="pl-percent-col" style="background-color: #e9ecef;">{% if totals.ISA.totalPLPercent >= 0 %}<span class="pl-positive">▲ {{ totals.ISA.totalPLPercent|number_format(2) }}%</span>{% else %}<span class="pl-negative">▼ {{ totals.ISA.totalPLPercent|number_format(2) }}%</span>{% endif %}</td>
+                <td class="pl-gbp-col" style="background-color: #e9ecef;">{% if totals.ISA.totalPL >= 0 %}<span class="pl-positive">▲ £{{ totals.ISA.totalPL|number_format(2) }}</span>{% else %}<span class="pl-negative">▼ £{{ totals.ISA.totalPL|number_format(2) }}</span>{% endif %}</td>
+                <td class="separator-column"></td>
+                <td class="tot-spent-col" style="background-color: #e9ecef;"><span class="tot-spent">£{{ totals.SIPP.totalInvested|number_format(0) }}</span></td>
+                <td class="pl-percent-col" style="background-color: #e9ecef;">{% if totals.SIPP.totalPLPercent >= 0 %}<span class="pl-positive">▲ {{ totals.SIPP.totalPLPercent|number_format(2) }}%</span>{% else %}<span class="pl-negative">▼ {{ totals.SIPP.totalPLPercent|number_format(2) }}%</span>{% endif %}</td>
+                <td class="pl-gbp-col" style="background-color: #e9ecef;">{% if totals.SIPP.totalPL >= 0 %}<span class="pl-positive">▲ £{{ totals.SIPP.totalPL|number_format(2) }}</span>{% else %}<span class="pl-negative">▼ £{{ totals.SIPP.totalPL|number_format(2) }}</span>{% endif %}</td>
+            </tr>
+            <tr>
+                <th rowspan="2" style="width: 80px;">Ticker</th>
+                <th rowspan="2" style="width: 80px;">Price</th>
+                <th rowspan="2" class="note-column">Note</th>
+                <th class="separator-header"></th>
+                <th colspan="3" class="invest-header">Invest Acc</th>
+                <th class="separator-header"></th>
+                <th colspan="3" class="isa-header">Stocks ISA</th>
+                <th class="separator-header"></th>
+                <th colspan="3" class="sipp-header">SIPP Portfolio</th>
+            </tr>
+            <tr>
+                <th class="separator-header"></th>
+                <th class="tot-spent-col" style="background-color: #f8f9fa; color: #333;">Tot Spent £</th>
+                <th class="pl-percent-col" style="background-color: #f8f9fa; color: #333;">P/L (%)</th>
+                <th class="pl-gbp-col" style="background-color: #f8f9fa; color: #333;">P/L (GBP)</th>
+                <th class="separator-header"></th>
+                <th class="tot-spent-col" style="background-color: #f8f9fa; color: #333;">Tot Spent £</th>
+                <th class="pl-percent-col" style="background-color: #f8f9fa; color: #333;">P/L (%)</th>
+                <th class="pl-gbp-col" style="background-color: #f8f9fa; color: #333;">P/L (GBP)</th>
+                <th class="separator-header"></th>
+                <th class="tot-spent-col" style="background-color: #f8f9fa; color: #333;">Tot Spent £</th>
+                <th class="pl-percent-col" style="background-color: #f8f9fa; color: #333;">P/L (%)</th>
+                <th class="pl-gbp-col" style="background-color: #f8f9fa; color: #333;">P/L (GBP)</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ticker in allTickers %}
+            <tr data-ticker="{{ ticker }}">
+                <td>{{ ticker }}</td>
+                <td>{% set currentPrice = null %}{% for type, data in portfolioData %}{% for position in data.positions %}{% if position.ticker == ticker %}{% set currentPrice = position.currentPrice %}{% endif %}{% endfor %}{% endfor %}{% if currentPrice %}£{{ currentPrice|number_format(4) }}{% endif %}</td>
+                <td class="note-column" style="padding: 2px !important;">
+                    <span class="note-icon {% if tickerNotes[ticker] %}has-note{% endif %}{% if tickerImportant[ticker] %} important-note{% endif %}{% if tickerCheck[ticker] %} check-note{% endif %}{% if tickerFinancials[ticker] %} financials-note{% endif %}"
+                          data-ticker="{{ ticker }}"
+                          data-note="{{ tickerNotes[ticker] }}"
+                          data-important="{{ tickerImportant[ticker] ? 'true' : 'false' }}"
+                          data-check="{{ tickerCheck[ticker] ? 'true' : 'false' }}"
+                          data-financials="{{ tickerFinancials[ticker] ? 'true' : 'false' }}"
+                          style="padding: 4px; display: block; width: 100%; height: 100%;">📝</span>
+                </td>
+                <td class="separator-column"></td>
+                <td class="tot-spent-col">{% set found = false %}{% for position in portfolioData.INVEST.positions %}{% if position.ticker == ticker %}<span class="tot-spent">£{{ position.totalSpent|number_format(0) }}</span>{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="pl-percent-col">{% set found = false %}{% for position in portfolioData.INVEST.positions %}{% if position.ticker == ticker %}{% if position.profitLossPercent >= 0 %}<span class="pl-positive">▲ {{ position.profitLossPercent|number_format(2) }}%</span>{% else %}<span class="pl-negative">▼ {{ position.profitLossPercent|number_format(2) }}%</span>{% endif %}{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="pl-gbp-col">{% set found = false %}{% for position in portfolioData.INVEST.positions %}{% if position.ticker == ticker %}{% if position.profitLoss >= 0 %}<span class="pl-positive">▲ £{{ position.profitLoss|number_format(2) }}</span>{% else %}<span class="pl-negative">▼ £{{ position.profitLoss|number_format(2) }}</span>{% endif %}{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="separator-column"></td>
+                <td class="tot-spent-col">{% set found = false %}{% for position in portfolioData.ISA.positions %}{% if position.ticker == ticker %}<span class="tot-spent">£{{ position.totalSpent|number_format(0) }}</span>{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="pl-percent-col">{% set found = false %}{% for position in portfolioData.ISA.positions %}{% if position.ticker == ticker %}{% if position.profitLossPercent >= 0 %}<span class="pl-positive">▲ {{ position.profitLossPercent|number_format(2) }}%</span>{% else %}<span class="pl-negative">▼ {{ position.profitLossPercent|number_format(2) }}%</span>{% endif %}{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="pl-gbp-col">{% set found = false %}{% for position in portfolioData.ISA.positions %}{% if position.ticker == ticker %}{% if position.profitLoss >= 0 %}<span class="pl-positive">▲ £{{ position.profitLoss|number_format(2) }}</span>{% else %}<span class="pl-negative">▼ £{{ position.profitLoss|number_format(2) }}</span>{% endif %}{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="separator-column"></td>
+                <td class="tot-spent-col">{% set found = false %}{% for position in portfolioData.SIPP.positions %}{% if position.ticker == ticker %}<span class="tot-spent">£{{ position.totalSpent|number_format(0) }}</span>{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="pl-percent-col">{% set found = false %}{% for position in portfolioData.SIPP.positions %}{% if position.ticker == ticker %}{% if position.profitLossPercent >= 0 %}<span class="pl-positive">▲ {{ position.profitLossPercent|number_format(2) }}%</span>{% else %}<span class="pl-negative">▼ {{ position.profitLossPercent|number_format(2) }}%</span>{% endif %}{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+                <td class="pl-gbp-col">{% set found = false %}{% for position in portfolioData.SIPP.positions %}{% if position.ticker == ticker %}{% if position.profitLoss >= 0 %}<span class="pl-positive">▲ £{{ position.profitLoss|number_format(2) }}</span>{% else %}<span class="pl-negative">▼ £{{ position.profitLoss|number_format(2) }}</span>{% endif %}{% set found = true %}{% endif %}{% endfor %}{% if not found %}<span class="empty-cell">-</span>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+<!-- SIPP Trade Modal -->
+<div class="modal fade" id="sippTradeModal" tabindex="-1" aria-labelledby="sippTradeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ path('app_sipp_trade') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="sippTradeModalLabel">✍️ Record SIPP Trade</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        
+        <!-- The white background wrapper starts here -->
+        <div class="modal-body" style="background-color: #f8f9fa; color: #333; padding: 20px;">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Ticker (e.g. BHL, EVTL)</label>
+            <input type="text" name="ticker" class="form-control" required placeholder="Enter ticker" style="background: white;">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Action</label>
+            <select name="type" class="form-select" style="background: white;">
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Date</label>
+            <input type="date" name="date" class="form-control" value="{{ 'now'|date('Y-m-d') }}" required style="background: white;">
+          </div>
+                    <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold">Shares</label>
+              <input type="number" step="0.0001" name="shares" class="form-control" required style="background: white;">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold">Currency</label>
+              <select name="currency" class="form-select" style="background: white;">
+                <option value="GBP">GBP (£)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold">Price per Share</label>
+              <input type="number" step="0.0001" name="price" class="form-control" required style="background: white;">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Additional Fees (£)</label>
+            <input type="number" step="0.01" name="fees" class="form-control" value="0" style="background: white;">
+            <small class="text-muted">Enter FX or platform fees in GBP (e.g., 0.02)</small>
+          </div>
+        </div>
+        <!-- The white background wrapper ends here -->
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Trade</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+<script>
+    document.getElementById('ticker-search').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const rows = document.querySelectorAll('.master-table tbody tr');
+
+        rows.forEach(function(row) {
+            const tickerCell = row.cells[0];
+            if (tickerCell && tickerCell.textContent.trim() !== '') {
+                const tickerText = tickerCell.textContent.toLowerCase();
+                if (tickerText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

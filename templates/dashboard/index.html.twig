@@ -1,0 +1,329 @@
+{% extends 'base.html.twig' %}
+
+
+{% block body %}
+
+<div class="container">
+
+    <!-- Flash Messages -->
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger">{{ message }}</div>
+    {% endfor %}
+
+    <h1>📊 My Portfolio Dashboard</h1>
+
+<div style="margin-bottom: 20px;">
+    <form method="post" action="{{ path('app_sync_t212') }}" style="display: inline-block; margin-right: 10px;">
+        <button type="submit" class="btn btn-primary">🔄 Sync T212</button>
+    </form>
+    <form method="get" action="{{ path('app_position_index') }}" style="display: inline-block;">
+    <button type="submit" class="btn btn-secondary">💼 Manage SIPP</button>
+    </form>
+    <form method="get" action="{{ path('app_sold_holdings') }}" style="display: inline-block; margin-left: 10px;">
+    <button type="submit" class="btn btn-outline-secondary">💤 Sold Holdings</button>
+    </form>
+    <form method="get" action="{{ path('app_trade_history') }}" style="display: inline-block; margin-left: 10px;">
+    <button type="submit" class="btn btn-outline-primary">📜 Trade History</button>
+    </form>
+</div>
+
+    <!-- Summary Cards -->
+
+    <div class="summary-cards">
+
+        <div class="card">
+
+            <div class="card-title">Total Value</div>
+
+            <div class="card-value">£{{ totals.totalValue|number_format(2) }}</div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="card-title">Total Invested</div>
+
+            <div class="card-value">£{{ totals.totalInvested|number_format(2) }}</div>
+
+        </div>
+
+        <div class="card {% if totals.totalPL >= 0 %}positive{% else %}negative{% endif %}">
+
+            <div class="card-title">Total P/L</div>
+
+            <div class="card-value">
+
+                {% if totals.totalPL >= 0 %}▲{% else %}▼{% endif %}
+
+                £{{ totals.totalPL|number_format(2) }}
+
+                {% if totals.totalInvested > 0 %}
+                    ({{ (totals.totalPL / totals.totalInvested * 100)|number_format(2) }}%)
+                {% else %}
+                    (0.00%)
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Portfolio Tables -->
+
+    {% for accountType, data in portfolioData %}
+
+        <h2>{{ accountType }} Account</h2>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Ticker</th>
+
+                        <th>Name</th>
+
+                        <th>Shares</th>
+
+                        <th>Current Price</th>
+
+                        <th>Avg Price</th>
+
+                        <th>Total Spent</th>
+
+                        <th>Current Value</th>
+
+                        <th>P/L (GBP)</th>
+
+                        <th>P/L (%)</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for position in data.positions %}
+
+                        <tr>
+
+                            <td class="ticker">{{ position.ticker }}</td>
+
+                            <td>{{ position.name }}</td>
+
+                            <td>{{ position.shares|number_format(0) }}</td>
+
+                            <td>£{{ position.currentPrice|number_format(4) }}</td>
+
+                            <td>£{{ position.avgPrice|number_format(4) }}</td>
+
+                            <td>£{{ position.totalSpent|number_format(2) }}</td>
+
+                            <td>£{{ position.currentValue|number_format(2) }}</td>
+
+                            <td class="{% if position.profitLoss >= 0 %}positive{% else %}negative{% endif %}">
+
+                                {% if position.profitLoss >= 0 %}▲{% else %}▼{% endif %}
+
+                                £{{ position.profitLoss|number_format(2) }}
+
+                            </td>
+
+                            <td class="{% if position.profitLossPercent >= 0 %}positive{% else %}negative{% endif %}">
+
+                                {% if position.profitLossPercent >= 0 %}▲{% else %}▼{% endif %}
+
+                                {{ position.profitLossPercent|number_format(2) }}%
+
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}
+
+
+{% block stylesheets %}
+
+<style>
+
+    body {
+
+        background: #1a1a2e;
+
+        color: #fff;
+
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+
+        margin: 0;
+
+        padding: 20px;
+
+    }
+
+    .container {
+
+        max-width: 1400px;
+
+        margin: 0 auto;
+
+    }
+
+    h1 {
+
+        font-size: 28px;
+
+        margin-bottom: 30px;
+
+    }
+
+    h2 {
+
+        color: #8892b0;
+
+        font-size: 18px;
+
+        margin: 30px 0 15px 0;
+
+        border-bottom: 1px solid #233554;
+
+        padding-bottom: 10px;
+
+    }
+
+    .summary-cards {
+
+        display: grid;
+
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+
+        gap: 20px;
+
+        margin-bottom: 40px;
+
+    }
+
+    .card {
+
+        background: #16213e;
+
+        padding: 20px;
+
+        border-radius: 8px;
+
+        border: 1px solid #233554;
+
+    }
+
+    .card-title {
+
+        color: #8892b0;
+
+        font-size: 14px;
+
+        margin-bottom: 8px;
+
+    }
+
+    .card-value {
+
+        font-size: 24px;
+
+        font-weight: 600;
+
+    }
+
+    .positive {
+
+        color: #00d4aa;
+
+    }
+
+    .negative {
+
+        color: #ff6b6b;
+
+    }
+
+    .table-container {
+
+        overflow-x: auto;
+
+        background: #16213e;
+
+        border-radius: 8px;
+
+        border: 1px solid #233554;
+
+        padding: 10px;
+
+    }
+
+    table {
+
+        width: 100%;
+
+        border-collapse: collapse;
+
+        font-size: 14px;
+
+    }
+
+    th {
+
+        text-align: left;
+
+        padding: 12px 10px;
+
+        color: #8892b0;
+
+        font-weight: 500;
+
+        border-bottom: 1px solid #233554;
+
+    }
+
+    td {
+
+        padding: 10px;
+
+        border-bottom: 1px solid #1a1a2e;
+
+    }
+
+    .ticker {
+
+        font-weight: 600;
+
+        color: #64ffda;
+
+    }
+
+    tr:hover {
+
+        background: #1a1a2e;
+
+    }
+
+</style>
+
+{% endblock %}
